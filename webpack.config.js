@@ -25,11 +25,17 @@ module.exports = {
         test: /\.css$/,
         loader: ExtractTextPlugin.extract('style', 'css'),
       },
+      {
+        test: /\.pug$/,
+        loader: 'pug',
+      },
     ],
   },
   plugins: [
     new ExtractTextPlugin('style.css'),
-    new HtmlWebpackPlugin(),
+    new HtmlWebpackPlugin({
+      template: 'src/index.pug',
+    }),
   ],
 };
 
