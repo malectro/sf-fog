@@ -2,3 +2,10 @@ body {
   background: blue;
 }
 
+canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: black;
+}
+
