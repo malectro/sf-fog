@@ -35,7 +35,7 @@ scene.add(light);
 
 const width = 370;
 const height = 466;
-const worldWidth = 100;
+const worldWidth = 1000;
 
 const scale = worldWidth / width;
 
@@ -63,7 +63,17 @@ fetch('SanFranciscoNorth.bin').then(response => response.arrayBuffer()).then(res
 
 
 window.addEventListener('wheel', event => {
-  scene.rotation.x += event.deltaY * 0.01;
-  scene.rotation.y += event.deltaX * 0.01;
+  event.preventDefault();
+
+  if (event.shiftKey) {
+    terrainMesh.position.x += event.deltaX * 0.1;
+    terrainMesh.position.z += event.deltaY * 0.1;
+  } else if (event.altKey) {
+    camera.rotation.x += event.deltaY * 0.01;
+    camera.rotation.y += event.deltaX * 0.01;
+  } else {
+    terrainMesh.position.x += event.deltaX * 0.1;
+    terrainMesh.position.y += event.deltaY * 0.1;
+  }
 });
 
