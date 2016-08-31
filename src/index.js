@@ -1,5 +1,11 @@
 import 'src/index.css';
-import {Scene, PerspectiveCamera, WebGLRenderer, PlaneGeometry, MeshStandardMaterial, AmbientLight, DirectionalLight, Mesh, Vector3, DoubleSide} from 'three';
+import {Scene, PerspectiveCamera, WebGLRenderer, BoxGeometry, PlaneGeometry, MultiMaterial, MeshBasicMaterial, MeshStandardMaterial, TextureLoader, AmbientLight, DirectionalLight, Mesh, Vector3, Vector2, BackSide, DoubleSide, Fog, FogExp2} from 'three';
+import {vec2, vec3} from 'src/vector';
+import {load as loadAtlas} from 'src/atlas-texture';
+
+
+const fogColor = 0x777777;
+const lightColor = 0xFFC361;
 
 
 function handleResize() {
@@ -12,7 +18,7 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 
 
-const scene = new Scene();
+const topScene = new Scene();
 const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
 const renderer = new WebGLRenderer({
   antialias: true,
@@ -20,30 +26,39 @@ const renderer = new WebGLRenderer({
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 
+//scene.fog = new Fog(fogColor, 1, 2000);
+topScene.fog = new FogExp2(fogColor, 0.0005);
+renderer.setClearColor(fogColor);
+
 document.body.appendChild(renderer.domElement);
 
 function render() {
   requestAnimationFrame(render);
-  renderer.render(scene, camera);
+  renderer.render(topScene, camera);
 }
 render();
 
 
-camera.position.set(0, 100, 0);
-camera.lookAt(new Vector3(0, 100, 0));
+camera.position.set(0, 0, 0);
+camera.lookAt(new Vector3(0, 0, 1));
 
-const light = new DirectionalLight(0xffffff, 0.5);
+const light = new DirectionalLight(lightColor, 0.5);
 light.position.set(-1, 1, 0);
-scene.add(light);
+topScene.add(light);
 
-const light2 = new AmbientLight(0xffffff, 0.5);
-scene.add(light2);
+const light2 = new AmbientLight(lightColor, 0.5);
+topScene.add(light2);
 
 const width = 370;
 const height = 466;
 const worldWidth = 10000;
 
 const scale = worldWidth / width;
+
+const terrainScene = new Scene();
+terrainScene.position.y = -50;
+window.terrainScene = terrainScene;
+topScene.add(terrainScene);
 
 const terrainGeometry = new PlaneGeometry(width * scale, height * scale, width - 1, height - 1);
 const terrainMaterial = new MeshStandardMaterial({
@@ -54,14 +69,10 @@ const terrainMaterial = new MeshStandardMaterial({
 });
 const terrainMesh = new Mesh(terrainGeometry, terrainMaterial);
 terrainMesh.rotateX(-Math.PI / 2);
-console.log('ho', terrainMesh.rotation);
-scene.add(terrainMesh);
+terrainScene.add(terrainMesh);
 
 fetch('SanFranciscoNorth.bin').then(response => response.arrayBuffer()).then(response => {
   const tif = new Uint16Array(response);
-  window.tif = tif;
-  window.vertices = terrainGeometry.vertices;
-  console.log('hi', response, tif);
 
   terrainGeometry.vertices.forEach((vertex, i) => {
     vertex.z = tif[i] * 0.1 * scale;
@@ -80,7 +91,28 @@ const waterMaterial = new MeshStandardMaterial({
 });
 const waterMesh = new Mesh(waterGeometry, waterMaterial);
 waterMesh.rotateX(-Math.PI / 2);
-scene.add(waterMesh);
+terrainScene.add(waterMesh);
+
+loadAtlas('above-the-sea.jpg').then(textures => {
+  const materials = textures.map(texture => new MeshBasicMaterial({
+    map: texture,
+    side: BackSide,
+  }));
+  const skyMaterial = new MultiMaterial(materials);
+  const skyGeometry = new BoxGeometry(100, 100, 100);
+
+  materials.forEach((material, i) => {
+    skyGeometry.faces[i * 2].materialIndex = i;
+    skyGeometry.faces[i * 2 + 1].materialIndex = i;
+  });
+  //skyGeometry.elementsNeedUpdate = true;
+  skyGeometry.groupsNeedUpdate = true;
+
+  const testMaterial = new MeshBasicMaterial({map: textures[0]});
+  const skyMesh = new Mesh(skyGeometry, skyMaterial);
+
+  topScene.add(skyMesh);
+});
 
 
 let dir = camera.getWorldDirection();
@@ -97,13 +129,13 @@ window.addEventListener('wheel', event => {
     terrainMesh.position.x += event.deltaX * 0.1;
     terrainMesh.position.z += event.deltaY * 0.1;
     */
-    camera.position.y += event.deltaY * 0.1;
+    terrainScene.position.y += event.deltaY * 0.1;
   } else if (event.altKey) {
-    //camera.rotation.x += event.deltaY * 0.01;
-    camera.rotation.y += event.deltaX * 0.01;
+    topScene.rotation.x -= event.deltaY * 0.01;
+    topScene.rotation.y += event.deltaX * 0.01;
   } else {
-    camera.position.addScaledVector(dir, event.deltaY);
-    camera.position.addScaledVector(sideDir, event.deltaX);
+    terrainScene.position.addScaledVector(dir, event.deltaY);
+    terrainScene.position.addScaledVector(sideDir, event.deltaX);
     /*
     terrainMesh.position.x += event.deltaX * 0.1;
     terrainMesh.position.y += event.deltaY * 0.1;
